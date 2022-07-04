@@ -11,31 +11,39 @@ defmodule Mix.Tasks.Amnesia.Create do
     db = ensure_database_module(options[:database])
 
     if options[:schema] do
-      Amnesia.Schema.create
+      Amnesia.Schema.create()
     end
 
-    Amnesia.start
+    Amnesia.start()
+
     try do
       db.create!(copying)
       :ok = db.wait(15000)
     after
-      Amnesia.stop
+      Amnesia.stop()
     end
   end
 
   defp parse_copying(options) do
-    copying = Enum.reduce options, [], fn({key, val}, acc) ->
-      case {key, val} do
-        {:disk, true} ->
-          Keyword.put acc, :disk, [node()]
-        {:disk!, true} ->
-          Keyword.put acc, :disk!, [node()]
-        {:memory, true} ->
-          Keyword.put acc, :memory, [node()]
-        _ ->
-          acc
-      end
-    end
+    copying =
+      Enum.reduce(options, [], fn {key, val}, acc ->
+        case {key, val} do
+          {:disk, true} ->
+            Keyword.put(acc, :disk, [node()])
+
+          {:disk!, true} ->
+            Keyword.put(acc, :disk!, [node()])
+
+          {:leveldb_copies, true} ->
+            Keyword.put(acc, :leveldb_copies, [node()])
+
+          {:memory, true} ->
+            Keyword.put(acc, :memory, [node()])
+
+          _ ->
+            acc
+        end
+      end)
 
     # defaults to disk
     if Enum.empty?(copying) do
@@ -46,24 +54,27 @@ defmodule Mix.Tasks.Amnesia.Create do
   end
 
   defp parse_args([]) do
-    Mix.raise "No database option. Please provide one."
+    Mix.raise("No database option. Please provide one.")
   end
+
   defp parse_args(args) when is_list(args) do
-    {options, _, _} = OptionParser.parse(args, [
-          aliases: [
-            d: :database
-          ],
-          strict: [
-            database: :string,
-            schema: :boolean,
-            disk: :boolean,
-            disk!: :boolean,
-            memory: :boolean
-          ]
-        ])
+    {options, _, _} =
+      OptionParser.parse(args,
+        aliases: [
+          d: :database
+        ],
+        strict: [
+          database: :string,
+          schema: :boolean,
+          disk: :boolean,
+          disk!: :boolean,
+          leveldb_copies: :boolean,
+          memory: :boolean
+        ]
+      )
 
     unless options[:database] do
-      Mix.raise "No database option. Please provide one."
+      Mix.raise("No database option. Please provide one.")
     end
 
     if is_nil(options[:schema]) do
